@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AP Payment Bridge</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#f6f4ef; --panel:#ffffff; --fg:#1d2420; --muted:#6a7570; --line:#dcd9d0;
+  --accent:#1f5c47; --accent-ink:#ffffff; --soft:#e7efe9;
+  --ok:#1f7a3f; --warn:#b26a00; --info:#2a5fa8;
+  --sans:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#151a18; --panel:#1e2522; --fg:#e8ebe7; --muted:#9aa59f; --line:#333c38;
+  --accent:#6fc19e; --accent-ink:#0f1a15; --soft:#243029; --ok:#6fc19e; --warn:#e3a94a; --info:#7fb0f0; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--sans);line-height:1.45;padding:20px 16px}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:20px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between}
+h1{font-size:1.35rem;font-weight:600;margin:0;text-wrap:balance}
+.eyebrow{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.note{font-size:.8rem;color:var(--muted);border:1px dashed var(--line);padding:6px 10px;border-radius:6px}
+.grid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:20px}
+@media (max-width:760px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;min-width:0}
+h2{font-size:.95rem;font-weight:600;margin:0 0 12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:520px){.row{grid-template-columns:1fr}}
+label{display:grid;gap:4px;font-size:.8rem;color:var(--muted)}
+select,input{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0}
+select:focus,input:focus,button:focus{outline:2px solid var(--accent);outline-offset:1px}
+.bill{display:grid;gap:6px;margin:14px 0;padding:12px;background:var(--soft);border-radius:8px}
+.kv{display:flex;justify-content:space-between;gap:12px;font-size:.88rem}
+.kv b{font-weight:500}
+.money{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;align-items:center}
+button{font:inherit;font-weight:500;border-radius:6px;padding:9px 14px;border:1px solid var(--line);background:var(--panel);color:var(--fg);cursor:pointer}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+.status{display:inline-flex;align-items:center;gap:6px;font-size:.78rem;font-weight:500;padding:3px 9px;border-radius:999px;border:1px solid var(--line)}
+.status::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.status.pending::before{background:var(--warn)} .status.cleared::before{background:var(--ok)} .status.sent::before{background:var(--info)}
+.trace{list-style:none;margin:0;padding:0;display:grid;gap:0}
+.trace li{display:grid;grid-template-columns:22px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:.85rem}
+.trace li:last-child{border-bottom:0}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);margin-top:3px}
+.trace li.done .dot{background:var(--accent);border-color:var(--accent)}
+.trace li.active .dot{border-color:var(--accent);box-shadow:0 0 0 3px var(--soft)}
+.trace .who{font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.trace code{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.log{font-family:var(--mono);font-size:.76rem;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:190px;overflow:auto;white-space:pre-wrap;margin-top:12px}
+.confirm{margin-top:14px;padding:12px;border:1px solid var(--warn);border-radius:8px;font-size:.88rem;display:grid;gap:10px}
+[hidden]{display:none!important}
+</style></head><body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Campfire app · bill action</div>
+      <h1>Pay this bill through the connected payment provider</h1>
+    </div>
+    <div class="note">Simulation — no money moves. Sandbox stand-in for the provider API.</div>
+  </header>
+  <div class="grid">
+    <section class="panel">
+      <h2>Payment</h2>
+      <div class="row">
+        <label>Bill
+          <select id="bill"></select>
+        </label>
+        <label>Pay from (provider wallet)
+          <select id="wallet">
+            <option>GBP wallet · ending 4417</option>
+            <option>EUR wallet · ending 0902</option>
+            <option>USD wallet · ending 7731</option>
+          </select>
+        </label>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <label>Payment rail
+          <select id="rail">
+            <option>Faster Payments (GBP, same day)</option>
+            <option>BACS (GBP, 3 working days)</option>
+            <option>SEPA Credit Transfer (EUR)</option>
+            <option>SWIFT (any currency)</option>
+          </select>
+        </label>
+        <label>Payment date
+          <input id="date" type="date">
+        </label>
+      </div>
+      <div class="bill" id="billcard"></div>
+      <div class="actions">
+        <button class="primary" id="go">Submit payment</button>
+        <button id="reset">Start over</button>
+        <span class="status" id="status">Not started</span>
+      </div>
+      <div class="confirm" id="confirm" hidden>
+        <div>This will instruct a payout of <b class="money" id="cAmt"></b> to <b id="cVendor"></b>. Confirm?</div>
+        <div class="actions" style="margin:0"><button class="primary" id="yes">Yes, pay</button><button id="no">Cancel</button></div>
+      </div>
+    </section>
+    <aside class="panel">
+      <h2>What happens behind the button</h2>
+      <ol class="trace" id="trace">
+        <li data-step="1"><span class="dot"></span><div><div class="who">Campfire</div>User clicks <b>Pay with provider</b> on the bill. Campfire POSTs the bill payload to the app's webhook.<br><code>POST /hooks/pay-bill  {bill_id, vendor, amount, currency}</code></div></li>
+        <li data-step="2"><span class="dot"></span><div><div class="who">Your app</div>Validates vendor bank details against the approved record, then calls the provider's payouts API.<br><code>POST /api/v1/transfers</code></div></li>
+        <li data-step="3"><span class="dot"></span><div><div class="who">Provider</div>Creates a pending transfer and sends a webhook back when it settles.<br><code>transfer.status = PENDING → SETTLED</code></div></li>
+        <li data-step="4"><span class="dot"></span><div><div class="who">Your app → Campfire</div>Writes the bill payment through the OAuth connection (scope <code>bill_payments:write</code>). Bill flips to <b>Paid</b>.<br><code>POST /api/bill-payments</code></div></li>
+      </ol>
+      <div class="log" id="log">— waiting —</div>
+    </aside>
+  </div>
+</div>
+<script>
+const bills=[
+  {id:"BILL-1042",vendor:"Northgate Facilities Ltd",amount:12480.00,cur:"GBP",due:"2026-11-05",entity:"Campfire Software Ltd"},
+  {id:"BILL-1057",vendor:"Studio Ferrand SAS",amount:6900.00,cur:"EUR",due:"2026-11-12",entity:"Campfire Software Ltd"},
+  {id:"BILL-1061",vendor:"Brightwave Media Inc.",amount:3250.00,cur:"USD",due:"2026-11-01",entity:"Campfire Software Ltd"}
+];
+const $=id=>document.getElementById(id);
+const fmt=(n,c)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:c}).format(n);
+const sel=$("bill");
+bills.forEach(b=>{const o=document.createElement("option");o.value=b.id;o.textContent=`${b.id} · ${b.vendor}`;sel.appendChild(o)});
+$("date").value=new Date().toISOString().slice(0,10);
+function current(){return bills.find(b=>b.id===sel.value)}
+function card(){const b=current();$("billcard").innerHTML=
+ `<div class="kv"><span>Vendor</span><b>${b.vendor}</b></div>
+  <div class="kv"><span>Entity</span><b>${b.entity}</b></div>
+  <div class="kv"><span>Due</span><b>${b.due}</b></div>
+  <div class="kv"><span>Amount due</span><b class="money">${fmt(b.amount,b.cur)}</b></div>`}
+sel.addEventListener("change",()=>{card();resetAll()});
+card();
+const log=(m)=>{const l=$("log");if(l.textContent.startsWith("—"))l.textContent="";l.textContent+=`${new Date().toLocaleTimeString("en-GB")}  ${m}\n`;l.scrollTop=l.scrollHeight};
+const step=(n,state)=>{document.querySelectorAll("#trace li").forEach(li=>{const s=+li.dataset.step;li.classList.toggle("done",s<n||(s===n&&state==="done"));li.classList.toggle("active",s===n&&state!=="done")})};
+const setStatus=(t,cls)=>{const s=$("status");s.textContent=t;s.className="status "+(cls||"")};
+let timers=[];
+function resetAll(){timers.forEach(clearTimeout);timers=[];step(0);setStatus("Not started");$("log").textContent="— waiting —";$("confirm").hidden=true;$("go").disabled=false}
+$("reset").onclick=resetAll;
+$("go").onclick=()=>{const b=current();$("cAmt").textContent=fmt(b.amount,b.cur);$("cVendor").textContent=b.vendor;$("confirm").hidden=false};
+$("no").onclick=()=>$("confirm").hidden=true;
+$("yes").onclick=()=>{
+  $("confirm").hidden=true;$("go").disabled=true;const b=current();const wait=(ms,f)=>timers.push(setTimeout(f,ms));
+  step(1);setStatus("Sending","sent");log(`webhook ← Campfire  bill=${b.id} vendor="${b.vendor}" amount=${b.amount} ${b.cur}`);
+  wait(900,()=>{step(1,"done");step(2);log(`bank details OK (match approved vendor record)`);log(`→ provider POST /transfers rail="${$("rail").value}" from="${$("wallet").value}"`)});
+  wait(2100,()=>{step(2,"done");step(3);setStatus("Pending at provider","pending");log(`← provider 201  transfer_id=tr_${Math.random().toString(36).slice(2,10)} status=PENDING`);log(`Campfire bill ${b.id} marked "Payment pending"`)});
+  wait(4300,()=>{step(3,"done");step(4);log(`← provider webhook  status=SETTLED`)});
+  wait(5300,()=>{step(4,"done");setStatus("Paid in Campfire","cleared");log(`→ Campfire POST /bill-payments  bill=${b.id} amount=${b.amount} ${b.cur}  → 201`);log(`done: bill ${b.id} is Paid; bank transaction will auto-match on the feed`)});
+};
+</script>
+</body></html>
