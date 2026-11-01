@@ -40,15 +40,6 @@ code{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
     </a>
     <div class="note">Sandbox environment (Datavine Demo). Opens in a new tab.</div>
   </section>
-
-  <section class="panel">
-    <div class="eyebrow">What happens next</div>
-    <ol class="steps">
-      <li><span class="n">1</span><div>Create the vendor in Airwallex with bank details and payment terms. Airwallex validates the account.</div></li>
-      <li><span class="n">2</span><div>Airwallex sends a <code>vendor.created</code> webhook to the app; the app upserts the payee in Campfire via the API with the Airwallex ID as <code>external_id</code>.</div></li>
-      <li><span class="n">3</span><div>From then on, bills for that payee show <b>Pay with provider</b>, and payments flow back as bill payments.</div></li>
-    </ol>
-  </section>
 </div>
 <script>
 // Campfire appends a signed cf_ctx token when it opens this page; forward it so the target could pre-fill from context.
